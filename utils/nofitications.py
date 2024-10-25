@@ -9,16 +9,20 @@ def send_telegram_message(message):
     """
     Send a message via Telegram Bot API using the requests library.
 
-    :param bot_token: Your Telegram Bot API token
-    :param chat_id: The chat ID to send the message to
     :param message: The message to send
     :return: True if successful, False otherwise
     """
-    base_url = (
-        f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage"
-    )
+    # Verify that required environment variables are set
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
-    payload = {"chat_id": os.getenv("TELEGRAM_CHAT_ID"), "text": message}
+    if not bot_token or not chat_id:
+        print("Error: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in .env file")
+        return False
+
+    base_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    payload = {"chat_id": chat_id, "text": message}
 
     try:
         response = requests.post(base_url, json=payload)
