@@ -21,57 +21,73 @@ def load_model(base_model, peft_model, device):
 def process_chunk(chunk, tokenizer, model, device):
     results = []
     for _, row in chunk.iterrows():
-        prompt = f"Instruction:{row['instruction']}\nInput: {row['input']}\nAnswer: "
-        tokens = tokenizer(
-            prompt, return_tensors="pt", padding=True, truncation=True, max_length=512
-        ).to(device)
+        try:
+            prompt = (
+                f"Instruction:{row['instruction']}\nInput: {row['input']}\nAnswer: "
+            )
+            tokens = tokenizer(
+                prompt,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=512,
+            ).to(device)
 
-        with torch.no_grad():
-            res = model.generate(**tokens, max_length=512)
+            with torch.no_grad():
+                res = model.generate(**tokens, max_length=512)
 
-        res_sentence = tokenizer.decode(res[0], skip_special_tokens=True)
-        out_text = res_sentence.split("Answer: ")[-1].strip()
-        results.append(out_text)
+            res_sentence = tokenizer.decode(res[0], skip_special_tokens=True)
+            out_text = res_sentence.split("Answer: ")[-1].strip()
+            results.append(out_text)
+        except Exception as e:
+            error_message = f"Error processing row: {e}"
+            send_telegram_message(error_message)
+            results.append("Error")
     return results
 
 
 def main(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    try:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Send start notification
-    send_telegram_message("FinGPT Evaluation process started.")
+        # Send start notification
+        send_telegram_message("FinGPT Evaluation process started.")
 
-    print("Loading model...")
-    tokenizer, model = load_model(args.base_model, args.peft_model, device)
-    model = model.to(device)
+        print("Loading model...")
+        tokenizer, model = load_model(args.base_model, args.peft_model, device)
+        model = model.to(device)
 
-    print("Loading dataset...")
-    df = pd.read_parquet(args.input_file)
+        print("Loading dataset...")
+        df = pd.read_parquet(args.input_file)
 
-    # Add test mode logic
-    if args.test:
-        print("Running in test mode. Using only the first 100 rows.")
-        df = df.head(100)
+        # Add test mode logic
+        if args.test:
+            print("Running in test mode. Using only the first 100 rows.")
+            df = df.head(100)
 
-    results = []
-    chunk_size = args.chunk_size
+        results = []
+        chunk_size = args.chunk_size
 
-    print("Processing data...")
-    for i in tqdm(range(0, len(df), chunk_size)):
-        chunk = df.iloc[i : i + chunk_size]
-        chunk_results = process_chunk(chunk, tokenizer, model, device)
-        results.extend(chunk_results)
+        print("Processing data...")
+        for i in tqdm(range(0, len(df), chunk_size)):
+            chunk = df.iloc[i : i + chunk_size]
+            chunk_results = process_chunk(chunk, tokenizer, model, device)
+            results.extend(chunk_results)
 
-    df["predicted_sentiment"] = results
+        df["predicted_sentiment"] = results
 
-    print("Saving results...")
-    df.to_csv(args.output_file, index=False)
-    print(f"Results saved to {args.output_file}")
+        print("Saving results...")
+        df.to_csv(args.output_file, index=False)
+        print(f"Results saved to {args.output_file}")
 
-    # Send finish notification
-    send_telegram_message(
-        f"FinGPT Evaluation process completed. Results saved to {args.output_file}"
-    )
+        # Send finish notification
+        send_telegram_message(
+            f"FinGPT Evaluation process completed. Results saved to {args.output_file}"
+        )
+    except Exception as e:
+        error_message = f"FinGPT Evaluation process failed: {str(e)}"
+        send_telegram_message(error_message)
+        print(error_message)
 
 
 if __name__ == "__main__":
