@@ -13,6 +13,8 @@ module load python/3.11.3
 
 pip install --user -r requirements.txt
 
+set -a
 source .env
+set +a
 
 python fingpt_evaluation.py
