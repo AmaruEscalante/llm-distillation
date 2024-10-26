@@ -1,6 +1,4 @@
 #!/bin/bash
-#SBATCH --account=<project_id>
-#SBATCH --partition=main
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
